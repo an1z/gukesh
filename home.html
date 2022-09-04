@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Chess</title>
+    <script type="text/javascript">
+        window.onload = function () {
+            var conn;
+            var gameInfo = document.getElementById("game-info");
+            var joinGameId = document.getElementById("join-game-id");
+            var board = document.getElementById("board");
+
+            const pieces = {
+                w_pawn: "&#x2659;",
+                b_pawn: "&#x265F;",
+                w_rook: "&#x2656;",
+                b_rook: "&#x265C;",
+                w_king: "&#x2654;",
+                b_king: "&#x265A;",
+                w_queen: "&#x2655;",
+                b_queen: "&#x265B;",
+                w_bishop: "&#x2657;",
+                b_bishop: "&#x265D;",
+                w_knight: "&#x2658;",
+                b_knight: "&#x265E;",
+            };
+
+            let fromElem = null;
+            let toElem = null;
+            function getPrintedBoard(board) {
+                let tableElem = document.createElement("table");
+                let table = "";
+                for (let i = 0; i < 8; ++i) {
+                    table += "<tr>";
+                    for (let j = 0; j < 8; ++j) {
+                        table += `<td data-row=${i} data-col=${j}>`;
+                        if (board[i][j].name !== '') {
+                            let piece_name = "";
+                            if (board[i][j].is_white) {
+                                piece_name += "w_";
+                            } else {
+                                piece_name += "b_";
+                            }
+                            piece_name += board[i][j].name;
+                            table += pieces[piece_name];
+                        }
+                        table += "</td>";
+                    }
+                    table += "</tr>";
+                }
+                tableElem.innerHTML = table;
+                console.log(tableElem);
+                return tableElem
+            }
+
+            document.getElementById("create-game-form").onsubmit = function () {
+                if (!conn) {
+                    return false;
+                }
+                const gameStartCmd = { start_game: true };
+                conn.send(JSON.stringify(gameStartCmd));
+                document.getElementById("create-game-form").style.display = "none";
+                document.getElementById("join-game-form").style.display = "none";
+                return false;
+            };
+
+            document.getElementById("join-game-form").onsubmit = function () {
+                if (!conn) {
+                    return false;
+                }
+                if (!joinGameId.value) {
+                    return false;
+                }
+                const gameJoinCmd = { join_game: joinGameId.value };
+                conn.send(JSON.stringify(gameJoinCmd));
+                document.getElementById("create-game-form").style.display = "none";
+                document.getElementById("join-game-form").style.display = "none";
+                return false;
+            };
+
+            if (window["WebSocket"]) {
+                conn = new WebSocket("ws://" + document.location.host + "/ws");
+                conn.onclose = function (evt) {
+                    window.alert("connection closed");
+                };
+                conn.onmessage = function (evt) {
+                    const frame = JSON.parse(evt.data);
+                    gameInfo.innerHTML = "Game ID: " + frame.game_id;
+
+                    if (!frame.is_game_started) {
+                        return;
+                    }
+
+                    board.innerHTML = "";
+                    board.appendChild(getPrintedBoard(frame.board));
+
+                    function handleClick() {
+                        if (!conn) {
+                            return false;
+                        }
+                        if (fromElem === null) {
+                            fromElem = this;
+                            fromElem.style.borderColor = "green";
+                            fromElem.style.borderStyle = "solid";
+                            console.log("clicked from");
+                            console.log(fromElem);
+                            return false;
+                        }
+                        toElem = this;
+                        const moveCmd = {
+                            move: {
+                                from: {
+                                    row: parseInt(fromElem.dataset.row),
+                                    col: parseInt(fromElem.dataset.col)
+                                },
+                                to: {
+                                    row: parseInt(toElem.dataset.row),
+                                    col: parseInt(toElem.dataset.col)
+                                },
+                            }
+                        };
+                        conn.send(JSON.stringify(moveCmd));
+
+                        fromElem.style.borderColor = "";
+                        fromElem.style.borderStyle = "";
+                        fromElem = null;
+                        toElem = null;
+
+                        return false;
+                    }
+                    const cells = document.getElementsByTagName("td");
+                    for (let i = 0; i < cells.length; ++i) {
+                        cells[i].addEventListener("click", handleClick, false);
+                    }
+                };
+            } else {
+                window.alert("browser does not support WebSockets");
+            }
+        };
+    </script>
+    <style type="text/css">
+        body {
+            background: gray;
+        }
+
+        #log {
+            background: white;
+        }
+
+        #board {
+            background: white;
+        }
+
+        table {
+            background: #60786a;
+        }
+
+        td {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 40px;
+        }
+
+        tr:nth-child(odd) td:nth-child(even),
+        tr:nth-child(even) td:nth-child(odd) {
+            background: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-info"></div>
+    <span id="board"></div>
+        <div id="game-msg"></div>
+        <form id="create-game-form">
+            <input type="submit" value="Create game" />
+        </form>
+        <form id="join-game-form">
+            <input type="text" id="join-game-id" size="64" />
+            <input type="submit" value="Join Game ID" />
+        </form>
+</body>
+
+</html>
