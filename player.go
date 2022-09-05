@@ -162,7 +162,7 @@ func (p *player) gameWriteLoop() {
 		case <-ticker.C:
 			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := p.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Fatal("error sending ping", err)
+				log.Println("error sending ping", err)
 				return
 			}
 		}
